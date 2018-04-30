@@ -45,8 +45,13 @@ function convertUserInputFormat(that, val) {
     if (that.options.propertyType === 'iso8601') {
         var mom = moment(val);
         if (mom.isValid()) {
-            return mom.unix();
+            var iso = mom.toISOString();
+            return moment(iso, "YYYY-MM-DD HH:mm:ss.SSSZ").valueOf();
         }
+    } else if (that.options.propertyType === 'float') {
+        return parseFloat(val);
+    } else if (that.options.propertyType === 'integer') {
+        return parseInt(val);
     }
 }
 
@@ -247,8 +252,9 @@ RangeSlider.prototype.initialSliderValues = function() {
 
 RangeSlider.prototype.updateRangeDisplay = function(vals) {
 
-    var rawMinValue = Math.round(vals[0]);
-    var rawMaxValue = Math.round(vals[1]);
+
+    var rawMinValue = this.options.formatString === 'float' ? parseFloat(vals[0]) : Math.round(vals[0]);
+    var rawMaxValue = this.options.formatString === 'float' ? parseFloat(vals[1]) : Math.round(vals[1]);
 
     var minFilterValue, maxFilterValue;
     switch (this.options.rangeDescriptionFormat) {
@@ -322,49 +328,6 @@ RangeSlider.prototype.updateRangeDisplay = function(vals) {
     }
 }
 
-RangeSlider.prototype.convertInputValues = function(val) {
-    var newVal = '';
-
-    switch (this.options.rangeDescriptionFormat) {
-        case 'float':
-            {
-                newVal = parseFloat(val)
-                break;
-            }
-
-        case 'integer':
-            {
-                newVal = parseInt(val);
-                break;
-            }
-
-        case 'shortDate':
-            {
-                //var formatString = 'MM/DD/YY';
-                var formatString = 'l';
-                newVal = dateStringFromEpoch(rawMaxValue, formatString);
-                break;
-            }
-
-        case 'mediumDate':
-            {
-                //var formatString = 'MMM D, YYYY';
-                var formatString = 'LLL';
-                minFilterValue = dateStringFromEpoch(rawMinValue, formatString);
-                maxFilterValue = dateStringFromEpoch(rawMaxValue, formatString);
-                break;
-            }
-
-        case 'longDate':
-            {
-                //var formatString = 'dddd, MMMM Do, YYYY [at] h:mm:ss';
-                var formatString = 'LLLL';
-                minFilterValue = dateStringFromEpoch(rawMinValue, formatString);
-                maxFilterValue = dateStringFromEpoch(rawMaxValue, formatString);
-                break;
-            }
-        }
-}
 RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
     var that = this;
     var feats = map.querySourceFeatures(this.options.source);
@@ -379,7 +342,7 @@ RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
           "features": keepFeats
         };
 
-        map.getSource('demo').setData(gj);
+        map.getSource(that.options.source).setData(gj);
     }
 }
 
@@ -436,10 +399,8 @@ RangeSlider.prototype.rangeFeatureFilter = function(feature, vals) {
     }
 
     if (inRange || ongoing) {
-      //console.log('Will show: ' + feature.properties[self.options.minProperty], feature.properties[self.options.maxProperty]);
       return true;
     } else {
-      //console.log('Will not show: ' + feature.properties[self.options.minProperty], feature.properties[self.options.maxProperty]);
       return false;
     }
 }
@@ -468,8 +429,10 @@ RangeSlider.prototype.configureRangeSlider = function() {
             });
 
             mbSlider.noUiSlider.on('update', function(val, handle) {
-                var options = that.options;
-                var vals = [ Math.round(val[0]), Math.round(val[1]) ];
+                var options = that.options,
+                    vals;
+
+                vals = options.formatString !== 'float' ? [ Math.round(val[0]), Math.round(val[1]) ] : [ parseFloat(val[0]), parseFloat(val[1]) ];
 
                 that.displayFilteredFeatures(map, vals);
                 that.updateRangeDisplay(vals);
@@ -480,17 +443,17 @@ RangeSlider.prototype.configureRangeSlider = function() {
                 var maxInput = document.getElementById('max-' + that.options.elm);
 
                 minInput.addEventListener('change', function() {
-                    // that.convertInputValues(this.value)
-                    mbSlider.noUiSlider.set(convertUserInputFormat(that, this.value));
+                    var newVal = convertUserInputFormat(that, this.value);
+                    mbSlider.noUiSlider.set(newVal, null);
                 });
 
                 maxInput.addEventListener('change', function() {
-                    that.convertInputValues(this.value)
-                    //mbSlider.noUiSlider.set([null, this.value]);
+                    var newVal = convertUserInputFormat(that, this.value);
+                    mbSlider.noUiSlider.set(null, newVal);
                 });
             }
 
-            map.off('render', sourceIsLoaded)
+            map.off('render', sourceIsLoaded);
         }
     }
 
