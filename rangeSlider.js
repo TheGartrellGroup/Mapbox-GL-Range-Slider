@@ -1,6 +1,6 @@
 'use strict';
 
-function RangeSlider(options) {
+function RangeSlider(options, position) {
     this.options = {
         elm: options.elm, //required
         layer: options.layer, //required
@@ -18,7 +18,9 @@ function RangeSlider(options) {
         filterMax: options.filterMax ? options.filterMax : null,
         controlWidth: options.controlWidth ? options.controlWidth : '200px',
         input: options.input ? options.input : false
-    }
+    };
+
+    this.position = position;
 }
 
 function dateStringFromEpoch(epoch, formatString) {
@@ -55,14 +57,14 @@ function convertUserInputFormat(that, val) {
     }
 }
 
-RangeSlider.prototype.onAdd = function(map) {
+RangeSlider.prototype.onAdd = function(map, position) {
     var options = this.options;
     RangeSlider.prototype.options = options;
     var elm = this.options.elm;
 
     this._map = map;
     this._container = document.createElement('div');
-    this._container.className = elm + '-container';
+    this._container.className = elm + '-container mapboxgl-ctrl';
     this._container.style.pointerEvents = 'auto';
     this._container.style.display = "none";
 
@@ -115,6 +117,10 @@ RangeSlider.prototype.onAdd = function(map) {
     observer.observe(document.body, { childList: true });
 
     return this._container;
+}
+
+RangeSlider.prototype.getDefaultPosition = function() {
+    return this.position;
 }
 
 RangeSlider.prototype.onRemove = function() {

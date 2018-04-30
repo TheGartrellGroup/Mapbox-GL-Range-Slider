@@ -6,8 +6,8 @@
     <title>Display a map</title>
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
     <!-- Mapbox -->
-    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.44.2/mapbox-gl.js'></script>
-    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.44.2/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.43.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.43.0/mapbox-gl.css' rel='stylesheet' />
 
     <!-- Slider -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/11.1.0/nouislider.min.css" />
@@ -29,9 +29,7 @@
     }
 
     .slider-control-container {
-        top: 25px;
-        right: 25px;
-        position: absolute;
+        padding: 5px;
     }
 
     .slider-control-range-display {
@@ -64,7 +62,7 @@
         zoom: 6 // starting zoom
     });
 
-    map.addControl(new RangeSlider({
+    var sliderOptions = {
         elm: 'slider-control',
         layer: 'demo',
         source: 'demo',
@@ -79,7 +77,9 @@
         propertyType: 'iso8601',
         rangeDescriptionFormat: 'shortDate',
         descriptionPrefix: 'Date:'
-    }))
+    }
+
+    map.addControl(new RangeSlider(sliderOptions, 'top-right'));
 
     map.on('load', function() {
         map.addSource('demo', { type: 'geojson', data: 'https://devdata.ntendril.com/6493abf0497911e8b1091ff5c85a4d37.json' })
