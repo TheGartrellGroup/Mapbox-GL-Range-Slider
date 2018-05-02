@@ -109,7 +109,7 @@ RangeSlider.prototype.onAdd = function(map, position) {
     //watch for when dom elm finally exists
     var observer = new MutationObserver(function(m) {
         if (document.getElementById(elm)) {
-            RangeSlider.prototype.configureRangeSlider(options, map);
+            RangeSlider.prototype.init(options, map);
             observer.disconnect();
         }
     });
@@ -128,58 +128,127 @@ RangeSlider.prototype.onRemove = function() {
     this._map = undefined;
 }
 
+RangeSlider.prototype.setRanges = function() {
+  var that = this;
+  document.querySelector('.' + that.options.elm + '-container').style.display = 'block'
+
+  var sliderMin = that.sliderMinimumValue();
+  var sliderMax = that.sliderMaximumValue();
+  var sliderInitialValues = that.initialSliderValues();
+
+  var mbSlider = document.getElementById(that.options.elm);
+
+  noUiSlider.create(mbSlider, {
+      start: sliderInitialValues,
+      connect: true,
+      range: {
+          'min': sliderMin,
+          'max': sliderMax
+      }
+  });
+
+  mbSlider.noUiSlider.on('update', function(val, handle) {
+      var options = that.options,
+          vals;
+
+      vals = options.formatString !== 'float' ? [ Math.round(val[0]), Math.round(val[1]) ] : [ parseFloat(val[0]), parseFloat(val[1]) ];
+
+      that.displayFilteredFeatures(map, vals);
+      that.updateRangeDisplay(vals);
+  })
+
+  if (that.options.input) {
+      var minInput = document.getElementById('min-' + that.options.elm);
+      var maxInput = document.getElementById('max-' + that.options.elm);
+
+      minInput.addEventListener('change', function() {
+          var newVal = convertUserInputFormat(that, this.value);
+          mbSlider.noUiSlider.set(newVal, null);
+      });
+
+      maxInput.addEventListener('change', function() {
+          var newVal = convertUserInputFormat(that, this.value);
+          mbSlider.noUiSlider.set(null, newVal);
+      });
+  }
+}
+
 RangeSlider.prototype.calculateMinMaxValuesForLayer = function(map) {
+    var source = map.getSource(this.options.source);
 
-    var layerID = this.options.layer,
-        sourceID = this.options.source,
-        minFieldValue = Number.MAX_VALUE,
-        maxFieldValue = Number.MIN_VALUE;
+    function processVals(data) {
+        var layerID = RangeSlider.prototype.options.layer,
+            sourceID = RangeSlider.prototype.options.source,
+            minFieldValue = Number.MAX_VALUE,
+            maxFieldValue = Number.MIN_VALUE,
+            feats = data.features;
 
-    var feats = map.querySourceFeatures(sourceID);
+        RangeSlider.prototype.fc = JSON.parse(JSON.stringify(data));
 
-    for (var i = 0; i < feats.length; i++) {
-        var minFeatureValue, maxFeatureValue;
+        for (var i = 0; i < feats.length; i++) {
+            var minFeatureValue, maxFeatureValue;
 
-        if (this.options.propertyType === 'iso8601') {
-            // convert to epoch
-            var minDateValue = feats[i].properties[this.options.minProperty];
-            var minDate = new Date(minDateValue);
-            minFeatureValue = minDate.getTime();
+            if (RangeSlider.prototype.options.propertyType === 'iso8601') {
+                // convert to epoch
+                var minDateValue = feats[i].properties[RangeSlider.prototype.options.minProperty];
+                var minDate = new Date(minDateValue);
+                minFeatureValue = minDate.getTime();
 
-            var maxDateValue = feats[i].properties[this.options.maxProperty];
-            var maxDate = new Date(maxDateValue);
-            maxFeatureValue = maxDate.getTime();
+                var maxDateValue = feats[i].properties[RangeSlider.prototype.options.maxProperty];
+                var maxDate = new Date(maxDateValue);
+                maxFeatureValue = maxDate.getTime();
 
+            } else {
+                minFeatureValue = feats[i].properties[RangeSlider.prototype.options.minProperty];
+                maxFeatureValue = feats[i].properties[RangeSlider.prototype.options.maxProperty];
+            }
+
+            if (minFeatureValue > maxFeatureValue) {
+                console.error('ERROR: min > max for feature with properties: ' + JSON.stringify(feats[i].properties));
+            }
+
+            if (minFeatureValue < minFieldValue) {
+                minFieldValue = minFeatureValue;
+            }
+
+            if (maxFeatureValue > maxFieldValue) {
+                maxFieldValue = maxFeatureValue;
+            }
+        }
+
+        if (RangeSlider.prototype.options.propertyType === 'iso8601') {
+
+            var minDate = new Date(minFieldValue);
+            var maxDate = new Date(maxFieldValue);
+
+            console.log('Range would be ' + minDate + ' to ' + maxDate);
         } else {
-            minFeatureValue = feats[i].properties[this.options.minProperty];
-            maxFeatureValue = feats[i].properties[this.options.maxProperty];
+            console.log('Range would be ' + minFieldValue + ' to ' + maxFieldValue);
         }
 
-        if (minFeatureValue > maxFeatureValue) {
-            console.error('ERROR: min > max for feature with properties: ' + JSON.stringify(feats[i].properties));
-        }
-
-        if (minFeatureValue < minFieldValue) {
-            minFieldValue = minFeatureValue;
-        }
-
-        if (maxFeatureValue > maxFieldValue) {
-            maxFieldValue = maxFeatureValue;
-        }
+        self.calculatedMinValue = minFieldValue;
+        self.calculatedMaxValue = maxFieldValue;
     }
 
-    if (this.options.propertyType === 'iso8601') {
+    if (source.type !== 'geojson') {
+      console.error("This isn't a geojson data source")
+    } else if (typeof source._data === 'string' && source._data.features === undefined) {
+        var request = new XMLHttpRequest();
+        request.open('GET', source._data, true);
 
-        var minDate = new Date(minFieldValue);
-        var maxDate = new Date(maxFieldValue);
+        request.onload = function() {
+            if (request.status >= 200 && request.status < 400) {
+                var data = JSON.parse(request.responseText);
+                processVals(data);
+                RangeSlider.prototype.setRanges(map);
+            }
+        }
 
-        console.log('Range would be ' + minDate + ' to ' + maxDate);
-    } else {
-        console.log('Range would be ' + minFieldValue + ' to ' + maxFieldValue);
+        request.send();
+    } else if (source._data.features) {
+        processVals(source._data);
+        RangeSlider.prototype.setRanges(map);
     }
-
-    self.calculatedMinValue = minFieldValue;
-    self.calculatedMaxValue = maxFieldValue;
 
 }
 
@@ -258,7 +327,6 @@ RangeSlider.prototype.initialSliderValues = function() {
 
 RangeSlider.prototype.updateRangeDisplay = function(vals) {
 
-
     var rawMinValue = this.options.formatString === 'float' ? parseFloat(vals[0]) : Math.round(vals[0]);
     var rawMaxValue = this.options.formatString === 'float' ? parseFloat(vals[1]) : Math.round(vals[1]);
 
@@ -335,21 +403,21 @@ RangeSlider.prototype.updateRangeDisplay = function(vals) {
 }
 
 RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
-    var that = this;
-    var feats = map.querySourceFeatures(this.options.source);
+    var that = this,
+        feats;
 
-    if (feats) {
-        var keepFeats = feats.filter(function(f){
-            return (that.rangeFeatureFilter(f, vals))
-        });
+    feats = map.querySourceFeatures(that.options.source).length ? map.querySourceFeatures(that.options.source) : that.fc.features;
 
-        var gj = {
-          "type": "FeatureCollection",
-          "features": keepFeats
-        };
+    var keepFeats = feats.filter(function(f){
+        return (that.rangeFeatureFilter(f, vals))
+    });
 
-        map.getSource(that.options.source).setData(gj);
-    }
+    var gj = {
+      "type": "FeatureCollection",
+      "features": keepFeats
+    };
+
+    map.getSource(that.options.source).setData(gj);
 }
 
 RangeSlider.prototype.rangeFeatureFilter = function(feature, vals) {
@@ -411,55 +479,13 @@ RangeSlider.prototype.rangeFeatureFilter = function(feature, vals) {
     }
 }
 
-RangeSlider.prototype.configureRangeSlider = function() {
+RangeSlider.prototype.init = function() {
     var that = this;
 
     var sourceIsLoaded = function() {
         if (map.getSource(that.options.source) && map.isSourceLoaded(that.options.source)) {
+            map.off('render', sourceIsLoaded)
             RangeSlider.prototype.calculateMinMaxValuesForLayer(map);
-            document.querySelector('.' + that.options.elm + '-container').style.display = 'block'
-
-            var sliderMin = that.sliderMinimumValue();
-            var sliderMax = that.sliderMaximumValue();
-            var sliderInitialValues = that.initialSliderValues();
-
-            var mbSlider = document.getElementById(that.options.elm);
-
-            noUiSlider.create(mbSlider, {
-                start: sliderInitialValues,
-                connect: true,
-                range: {
-                    'min': sliderMin,
-                    'max': sliderMax
-                }
-            });
-
-            mbSlider.noUiSlider.on('update', function(val, handle) {
-                var options = that.options,
-                    vals;
-
-                vals = options.formatString !== 'float' ? [ Math.round(val[0]), Math.round(val[1]) ] : [ parseFloat(val[0]), parseFloat(val[1]) ];
-
-                that.displayFilteredFeatures(map, vals);
-                that.updateRangeDisplay(vals);
-            })
-
-            if (that.options.input) {
-                var minInput = document.getElementById('min-' + that.options.elm);
-                var maxInput = document.getElementById('max-' + that.options.elm);
-
-                minInput.addEventListener('change', function() {
-                    var newVal = convertUserInputFormat(that, this.value);
-                    mbSlider.noUiSlider.set(newVal, null);
-                });
-
-                maxInput.addEventListener('change', function() {
-                    var newVal = convertUserInputFormat(that, this.value);
-                    mbSlider.noUiSlider.set(null, newVal);
-                });
-            }
-
-            map.off('render', sourceIsLoaded);
         }
     }
 
