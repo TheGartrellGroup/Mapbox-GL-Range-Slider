@@ -8,7 +8,7 @@ function RangeSlider(options, position) {
         minProperty: options.minProperty, //required
         maxProperty: options.maxProperty, //required
         propertyType: options.propertyType ? options.propertyType : 'iso8601', // or: epoch, integer, float
-        rangeType: options.rangeType ? options.rangeType :'contained', // or: startsIn, endsIn
+        rangeType: options.rangeType ? options.rangeType : 'contained', // or: startsIn, endsIn
         showOngoing: options.showOngoing ? options.showOngoing : false,
         rangeDescriptionFormat: options.rangeDescriptionFormat ? options.rangeDescriptionFormat : '', // float, integer, shortDate, mediumDate, longDate
         descriptionPrefix: options.descriptionPrefix ? options.descriptionPrefix : 'Range', // a space will be appended before range values
@@ -86,8 +86,8 @@ RangeSlider.prototype.onAdd = function(map, position) {
 
     if (options.input) {
         var inputDiv = document.createElement('div');
-        var minInput = document.createElement ('input');
-        var maxInput = document.createElement ('input');
+        var minInput = document.createElement('input');
+        var maxInput = document.createElement('input');
 
         inputDiv.className = 'input-container';
         inputDiv.style.marginTop = '10px';
@@ -129,48 +129,49 @@ RangeSlider.prototype.onRemove = function() {
 }
 
 RangeSlider.prototype.setRanges = function() {
-  var that = this;
-  document.querySelector('.' + that.options.elm + '-container').style.display = 'block'
+    var that = this;
+    document.querySelector('.' + that.options.elm + '-container').style.display = 'block'
 
-  var sliderMin = that.sliderMinimumValue();
-  var sliderMax = that.sliderMaximumValue();
-  var sliderInitialValues = that.initialSliderValues();
+    var sliderMin = that.sliderMinimumValue();
+    var sliderMax = that.sliderMaximumValue();
+    var sliderInitialValues = that.initialSliderValues();
 
-  var mbSlider = document.getElementById(that.options.elm);
+    var mbSlider = document.getElementById(that.options.elm);
 
-  noUiSlider.create(mbSlider, {
-      start: sliderInitialValues,
-      connect: true,
-      range: {
-          'min': sliderMin,
-          'max': sliderMax
-      }
-  });
+    noUiSlider.create(mbSlider, {
+        start: sliderInitialValues,
+        connect: true,
+        range: {
+            'min': sliderMin,
+            'max': sliderMax
+        }
+    });
 
-  mbSlider.noUiSlider.on('update', function(val, handle) {
-      var options = that.options,
-          vals;
+    mbSlider.noUiSlider.on('update', function(val, handle) {
+        var options = that.options,
+            vals;
 
-      vals = options.formatString !== 'float' ? [ Math.round(val[0]), Math.round(val[1]) ] : [ parseFloat(val[0]), parseFloat(val[1]) ];
+        vals = options.formatString !== 'float' ? [Math.round(val[0]), Math.round(val[1])] : [parseFloat(val[0]), parseFloat(val[1])];
 
-      that.displayFilteredFeatures(map, vals);
-      that.updateRangeDisplay(vals);
-  })
+        that.displayFilteredFeatures(map, vals);
+        that.updateRangeDisplay(vals);
 
-  if (that.options.input) {
-      var minInput = document.getElementById('min-' + that.options.elm);
-      var maxInput = document.getElementById('max-' + that.options.elm);
+    })
 
-      minInput.addEventListener('change', function() {
-          var newVal = convertUserInputFormat(that, this.value);
-          mbSlider.noUiSlider.set(newVal, null);
-      });
+    if (that.options.input) {
+        var minInput = document.getElementById('min-' + that.options.elm);
+        var maxInput = document.getElementById('max-' + that.options.elm);
 
-      maxInput.addEventListener('change', function() {
-          var newVal = convertUserInputFormat(that, this.value);
-          mbSlider.noUiSlider.set(null, newVal);
-      });
-  }
+        minInput.addEventListener('change', function() {
+            var newVal = convertUserInputFormat(that, this.value);
+            mbSlider.noUiSlider.set(newVal, null);
+        });
+
+        maxInput.addEventListener('change', function() {
+            var newVal = convertUserInputFormat(that, this.value);
+            mbSlider.noUiSlider.set(null, newVal);
+        });
+    }
 }
 
 RangeSlider.prototype.calculateMinMaxValuesForLayer = function(map) {
@@ -180,10 +181,10 @@ RangeSlider.prototype.calculateMinMaxValuesForLayer = function(map) {
         var layerID = RangeSlider.prototype.options.layer,
             sourceID = RangeSlider.prototype.options.source,
             minFieldValue = Number.MAX_VALUE,
-            maxFieldValue = Number.MIN_VALUE,
-            feats = data.features;
+            maxFieldValue = Number.MIN_VALUE;
 
         RangeSlider.prototype.fc = JSON.parse(JSON.stringify(data));
+        var feats = RangeSlider.prototype.fc.features;
 
         for (var i = 0; i < feats.length; i++) {
             var minFeatureValue, maxFeatureValue;
@@ -231,7 +232,7 @@ RangeSlider.prototype.calculateMinMaxValuesForLayer = function(map) {
     }
 
     if (source.type !== 'geojson') {
-      console.error("This isn't a geojson data source")
+        console.error("This isn't a geojson data source")
     } else if (typeof source._data === 'string' && source._data.features === undefined) {
         var request = new XMLHttpRequest();
         request.open('GET', source._data, true);
@@ -404,17 +405,15 @@ RangeSlider.prototype.updateRangeDisplay = function(vals) {
 
 RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
     var that = this,
-        feats;
+        feats = that.fc.features;
 
-    feats = map.querySourceFeatures(that.options.source).length ? map.querySourceFeatures(that.options.source) : that.fc.features;
-
-    var keepFeats = feats.filter(function(f){
+    var keepFeats = feats.filter(function(f) {
         return (that.rangeFeatureFilter(f, vals))
     });
 
     var gj = {
-      "type": "FeatureCollection",
-      "features": keepFeats
+        "type": "FeatureCollection",
+        "features": keepFeats
     };
 
     map.getSource(that.options.source).setData(gj);
@@ -426,14 +425,14 @@ RangeSlider.prototype.rangeFeatureFilter = function(feature, vals) {
     var minPropertyValue, maxPropertyValue, currentRange;
 
     if (this.options.propertyType === 'iso8601') {
-      // convert date strings to epoch values for comparison
-      minPropertyValue = iso8601StringToEpoch(feature.properties[this.options.minProperty]);
-      maxPropertyValue = iso8601StringToEpoch(feature.properties[this.options.maxProperty]);
-      currentRange = [new Date(rawMinValue), new Date(rawMaxValue)];
+        // convert date strings to epoch values for comparison
+        minPropertyValue = iso8601StringToEpoch(feature.properties[this.options.minProperty]);
+        maxPropertyValue = iso8601StringToEpoch(feature.properties[this.options.maxProperty]);
+        currentRange = [new Date(rawMinValue), new Date(rawMaxValue)];
     } else {
-      minPropertyValue = feature.properties[this.options.minProperty];
-      maxPropertyValue = feature.properties[this.options.maxProperty];
-      currentRange = [rawMinValue, rawMaxValue];
+        minPropertyValue = feature.properties[this.options.minProperty];
+        maxPropertyValue = feature.properties[this.options.maxProperty];
+        currentRange = [rawMinValue, rawMaxValue];
     }
 
     var inRange = false;
@@ -441,41 +440,45 @@ RangeSlider.prototype.rangeFeatureFilter = function(feature, vals) {
     var endsWithinRange = (maxPropertyValue >= currentRange[0]) && (maxPropertyValue <= currentRange[1]);
 
     switch (this.options.rangeType) {
-      case 'contained': {
-        var gteMinimum = minPropertyValue >= currentRange[0];
-        var lteMaximum = maxPropertyValue <= currentRange[1];
-        inRange = gteMinimum && lteMaximum;
-        break;
-      }
+        case 'contained':
+            {
+                var gteMinimum = minPropertyValue >= currentRange[0];
+                var lteMaximum = maxPropertyValue <= currentRange[1];
+                inRange = gteMinimum && lteMaximum;
+                break;
+            }
 
-      case 'startsIn': {
-        inRange = startsWithinRange;
-        break;
-      }
+        case 'startsIn':
+            {
+                inRange = startsWithinRange;
+                break;
+            }
 
-      case 'endsIn': {
-        inRange = endsWithinRange;
-        break;
-      }
+        case 'endsIn':
+            {
+                inRange = endsWithinRange;
+                break;
+            }
 
-      default: {
-        console.log('ERROR: ' + this.options.rangeType + ' is not a valid rangeType.');
-        break;
-      }
+        default:
+            {
+                console.log('ERROR: ' + this.options.rangeType + ' is not a valid rangeType.');
+                break;
+            }
     }
 
     var ongoing = false;
 
     if (this.options.showOngoing) {
 
-      var filterWithinPropertyRange = (currentRange[0] >= minPropertyValue) && (currentRange[1] <= maxPropertyValue);
-      ongoing = filterWithinPropertyRange || startsWithinRange || endsWithinRange;
+        var filterWithinPropertyRange = (currentRange[0] >= minPropertyValue) && (currentRange[1] <= maxPropertyValue);
+        ongoing = filterWithinPropertyRange || startsWithinRange || endsWithinRange;
     }
 
     if (inRange || ongoing) {
-      return true;
+        return true;
     } else {
-      return false;
+        return false;
     }
 }
 
