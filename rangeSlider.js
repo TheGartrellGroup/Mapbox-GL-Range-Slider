@@ -172,12 +172,12 @@ RangeSlider.prototype.setRanges = function() {
 
         minInput.addEventListener('change', function() {
             var newVal = convertUserInputFormat(that, this.value);
-            mbSlider.noUiSlider.set(newVal, null);
+            mbSlider.noUiSlider.set([newVal, null]);
         });
 
         maxInput.addEventListener('change', function() {
             var newVal = convertUserInputFormat(that, this.value);
-            mbSlider.noUiSlider.set(null, newVal);
+            mbSlider.noUiSlider.set([null, newVal]);
         });
     }
 }
