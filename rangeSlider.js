@@ -17,7 +17,9 @@ function RangeSlider(options, position) {
         filterMin: options.filterMin ? options.filterMin : null,
         filterMax: options.filterMax ? options.filterMax : null,
         controlWidth: options.controlWidth ? options.controlWidth : '200px',
-        input: options.input ? options.input : false
+        input: options.input ? options.input : false,
+        customMinProperty: options.customMinProperty ? options.customMinProperty : null, // a custom 'minimum value' property that will be added to each feature's attribute property
+        customMaxProperty: options.customMaxProperty ? options.customMaxProperty : null // a custom 'maximum value' property that will be added to each feature's attribute property
     };
 
     this.position = position;
@@ -147,6 +149,8 @@ RangeSlider.prototype.setRanges = function() {
         }
     });
 
+    that.firstPass = true;
+
     mbSlider.noUiSlider.on('update', function(val, handle) {
         var options = that.options,
             vals;
@@ -155,6 +159,10 @@ RangeSlider.prototype.setRanges = function() {
 
         that.displayFilteredFeatures(map, vals);
         that.updateRangeDisplay(vals);
+
+        if (that.firstPass) {
+          that.firstPass = false;
+        }
 
     })
 
@@ -199,6 +207,11 @@ RangeSlider.prototype.calculateMinMaxValuesForLayer = function(map) {
                 var maxDate = new Date(maxDateValue);
                 maxFeatureValue = maxDate.getTime();
 
+                if (RangeSlider.prototype.hasCustomAttributes) {
+                    feats[i].properties[RangeSlider.prototype.options.customMinProperty] = minFeatureValue;
+                    feats[i].properties[RangeSlider.prototype.options.customMaxProperty] = maxFeatureValue;
+                }
+
             } else {
                 minFeatureValue = feats[i].properties[RangeSlider.prototype.options.minProperty];
                 maxFeatureValue = feats[i].properties[RangeSlider.prototype.options.maxProperty];
@@ -230,6 +243,8 @@ RangeSlider.prototype.calculateMinMaxValuesForLayer = function(map) {
         self.calculatedMinValue = minFieldValue;
         self.calculatedMaxValue = maxFieldValue;
     }
+
+    this.hasCustomAttributes = this.options.customMinProperty && this.options.customMaxProperty ? true : false;
 
     if (source.type !== 'geojson') {
         console.error("This isn't a geojson data source")
@@ -405,18 +420,77 @@ RangeSlider.prototype.updateRangeDisplay = function(vals) {
 
 RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
     var that = this,
-        feats = that.fc.features;
+        feats = that.fc.features,
+        rangeFilter;
 
-    var keepFeats = feats.filter(function(f) {
-        return (that.rangeFeatureFilter(f, vals))
-    });
+    that.currentMinMaxVals = vals;
 
-    var gj = {
-        "type": "FeatureCollection",
-        "features": keepFeats
-    };
+    function combineFilters(layer, filter) {
 
-    map.getSource(that.options.source).setData(gj);
+        if(that.preExistingFilter[0] === 'all') {
+            var tempArr = that.preExistingFilter;
+            tempArr.shift();
+            filter.push.apply(filter, tempArr);
+        } else {
+            filter.push(that.preExistingFilter);
+        }
+
+        return filter;
+    }
+
+    if (that.firstPass) {
+        var filter = map.getFilter(that.options.layer);
+        //do we have a pre-existing filter on load
+        that.preExistingFilter = (filter !== undefined) ? filter : false;
+
+        if (!that.preExistingFilter) {
+            map.getSource(that.options.source).setData(that.fc);
+        }
+
+    } else if (that.options.propertyType !== 'iso8601') {
+        var f = ['all',
+            ['>=', ['number', ['get', that.options.minProperty]], vals[0]],
+            ['<=', ['number', ['get', that.options.maxProperty]], vals[1]],
+        ];
+
+        if (that.preExistingFilter) {
+            rangeFilter = combineFilters(that.options.layer, f);
+        } else {
+            rangeFilter = f;
+        }
+
+        map.setFilter(that.options.layer, rangeFilter);
+
+    } else if (that.hasCustomAttributes) {
+        var f = ['all',
+            ['>=', ['number', ['get', that.options.customMinProperty]], vals[0]],
+            ['<=', ['number', ['get', that.options.customMaxProperty]], vals[1]],
+        ];
+
+        if (that.preExistingFilter) {
+            rangeFilter = combineFilters(that.options.layer, f);
+        } else {
+            rangeFilter = f;
+        }
+
+        map.setFilter(that.options.layer, rangeFilter);
+    } else {
+
+        var keepFeats = feats.filter(function(f) {
+            return (that.rangeFeatureFilter(f, vals))
+        });
+
+        var gj = {
+            "type": "FeatureCollection",
+            "features": keepFeats
+        };
+
+        map.getSource(that.options.source).setData(gj);
+
+        if (that.preExistingFilter) {
+            map.setFilter(that.options.layer, that.preExistingFilter);
+        }
+    }
 }
 
 RangeSlider.prototype.rangeFeatureFilter = function(feature, vals) {
@@ -487,7 +561,7 @@ RangeSlider.prototype.init = function() {
 
     var sourceIsLoaded = function() {
         if (map.getSource(that.options.source) && map.isSourceLoaded(that.options.source)) {
-            map.off('render', sourceIsLoaded)
+            map.off('render', sourceIsLoaded);
             RangeSlider.prototype.calculateMinMaxValuesForLayer(map);
         }
     }

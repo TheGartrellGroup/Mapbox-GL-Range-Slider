@@ -31,13 +31,15 @@ The following properties can be specified in the options object used to initiali
     * Second child is the control itself using the elm as an ID - (ex. `#slider-control`)
 * **layer**: Mapbox GL layer ID
 * **source**: Mapbox GL source ID
-* **input**: Boolean (true/false) that allows for text input range changes when set to `true`
+* **input**: Boolean (`true`/`false`) that allows for text input range changes when set to `true`
 
 
 ### Filtered Properties
 
 * **minProperty**: Name of the specific property of each GeoJSON feature object used for comparison with the minimum handle. For example, if this is "StartDate" then the comparison would be: value of feature's "StartDate" property is greater than or equal to the value of the minimum handle.
-* **maxProperty**: Name of the specific property of a GeoJSON feature object used for comparison with the maximum handle. For example, if this is "EndDate" then the comparison would be: value of feature's "EndDate" property is less than or equal to the value of the maximum handle. When the range slider is used to filter against a single feature property, this would be the same as minProperty.
+* **maxProperty**: Name of the specific property of a GeoJSON feature object used for comparison with the maximum handle. For example, if this is "EndDate" then the comparison would be: value of feature's "EndDate" property is less than or equal to the value of the maximum handle. When the range slider is used to filter against a single feature property, this would be the same as *minProperty*.
+* **customMinProperty**: (Field is only used when `propertyType = 'iso8601'`). Name of a custom property that is added to each GeoJSON feature object and is used for comparison with the minimum handle. Having this property defined will circumvent the plugin from having to iterate through each feature and convert range values to their appropriate format everytime the minimum handle is changed. If this property is defined, the *customMaxProperty* must also be defined. Note that any additional customization (popups, tables, etc) beyond this plugin that may display a feature's property attributes, will also display the *customMinProperty* - unless it's specifically accounted for.
+* **customMaxproperty**:  (Field is only used when `propertyType = 'iso8601'`). Name of a custom property that is added to each GeoJSON feature object and is used for comparison with the maximum handle. Having this property defined will circumvent the plugin from having to iterate through each feature and convert range values to their appropriate format everytime the maximum handle is changed. If this property is defined, the *customMinProperty* must also be defined. Note that any additional customization (popups, tables, etc) beyond this plugin that may display a feature's property attributes, will also display the *customMaxProperty* - unless it's specifically accounted for.
 * **propertyType**: Used for casting the property before comparison. Possible values are: `iso8601`, `epoch`, `integer`, or `float`
 * **rangeDescriptionFormat**: `float`, `integer`, `shortDate`, `mediumDate`, or `longDate`
 * **descriptionPrefix**: A string added to the beginning of the text which displays the current range
