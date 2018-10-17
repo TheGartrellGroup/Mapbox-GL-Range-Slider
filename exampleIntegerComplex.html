@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset='utf-8' />
+    <title>Display a map</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <!-- Mapbox -->
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.css' rel='stylesheet' />
+
+    <!-- Slider -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/11.1.0/nouislider.min.css" />
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/11.1.0/nouislider.min.js'></script>
+
+    <!-- Moment.js -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.1/moment.min.js"></script>
+
+    <style>
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+    }
+
+    .slider-control-container {
+        padding: 5px;
+    }
+
+    .slider-control-range-display {
+        font-size: 18px;
+        padding-top: 5px;
+        padding-bottom: 5px;
+        font-weight: 700;
+    }
+
+    #filters {
+        position: absolute;
+        top: 0;
+        z-index: 1000
+    }
+
+    /*
+
+    class to change color
+    .noUi-connect {
+        background: #2980b9;
+    }
+
+    */
+    </style>
+</head>
+
+<body>
+    <form id='filters' style='background-color:#FFF; padding: 5px;'>
+      <input type="radio" name="toggle" value="rb"> Red & Blue<br>
+      <input type="radio" name="toggle" value="by"> Blue & Yellow<br>
+      <input type="radio" name="toggle" value="ry"> Red & Yellow<br>
+      <input type="radio" name="toggle" value="rby" checked> Red & Blue & Yellow<br>
+      <input type="radio" name="toggle" value="r"> Red<br>
+      <input type="radio" name="toggle" value="b"> Blue<br>
+      <input type="radio" name="toggle" value="y"> Yellow<br>
+    </form>
+    <div id='map'></div>
+    <script src="rangeSlider.js"></script>
+    <script>
+    mapboxgl.accessToken = '';
+    var map = new mapboxgl.Map({
+        container: 'map', // container id
+        style: 'mapbox://styles/mapbox/light-v9', // stylesheet location
+        center: [-121.5, 48.0], // starting position [lng, lat]
+        zoom: 7 // starting zoom
+    });
+
+    var sliderOptions = {
+        elm: 'slider-control',
+        layer: 'demo',
+        source: 'demo',
+        controlWidth: '400px',
+        minProperty: 'min',
+        maxProperty: 'max',
+        sliderMin: 2000,
+        sliderMax: 2030,
+        filterMin: 2005,
+        filterMax: 2023,
+        propertyType: 'integer',
+        rangeDescriptionFormat: 'integer',
+        descriptionPrefix: 'Year:'
+    }
+
+    map.addControl(new RangeSlider(sliderOptions, 'top-right'));
+
+
+
+    var filterList = ['any',
+        ['==', ['number', ['get', 'DataProviderType']], 4],
+        ['==', ['number', ['get', 'DataProviderType']], 6],
+        ['==', ['number', ['get', 'DataProviderType']], 8],
+    ];
+
+    map.on('load', function () {
+        map.addSource('demo', { type: 'geojson', data: 'https://devdata.ntendril.com/ed1c5ec0d25611e8ba29abea0a7a18e9.json'})
+        map.addLayer({
+            'id': 'demo',
+            'source': 'demo',
+            'type': 'fill',
+            'paint': {
+                'fill-color': {
+                    'property': 'DataProviderType',
+                    'stops': [
+                        [0, 'green'],
+                        [4, 'red'],
+                        [6, 'blue'],
+                        [8, 'yellow'],
+                    ]
+                }
+            },
+
+            filter: filterList
+
+        });
+
+    })
+
+
+    //Toggle Filter
+    //Toggle Filter
+    document.getElementById('filters').addEventListener('change', function (e) {
+
+        var radioButtonValue = e.target.value;
+
+        if (radioButtonValue === 'rby') {
+            filterList = ['any',
+                ['==', ['number', ['get', 'DataProviderType']], 4],
+                ['==', ['number', ['get', 'DataProviderType']], 6],
+                ['==', ['number', ['get', 'DataProviderType']], 8],
+            ];
+
+        } else if (radioButtonValue === 'r') {
+            filterList = ['==', ['number', ['get', 'DataProviderType']], 4];
+
+        } else if (radioButtonValue === 'b') {
+            filterList = ['==', ['number', ['get', 'DataProviderType']], 6];
+
+        } else if (radioButtonValue === 'y') {
+            filterList = ['==', ['number', ['get', 'DataProviderType']], 8];
+
+        } else if (radioButtonValue === 'rb') {
+            filterList = ['any',
+                ['==', ['number', ['get', 'DataProviderType']], 4],
+                ['==', ['number', ['get', 'DataProviderType']], 6],
+            ];
+
+        } else if (radioButtonValue === 'ry') {
+            filterList = ['any',
+                ['==', ['number', ['get', 'DataProviderType']], 4],
+                ['==', ['number', ['get', 'DataProviderType']], 8],
+            ];
+
+        } else if (radioButtonValue === 'by') {
+            filterList = ['any',
+                ['==', ['number', ['get', 'DataProviderType']], 6],
+                ['==', ['number', ['get', 'DataProviderType']], 8],
+            ];
+
+        }
+
+        RangeSlider.prototype.preExistingFilter = filterList;
+        RangeSlider.prototype.displayFilteredFeatures(map, RangeSlider.prototype.currentMinMaxVals);
+
+    });
+
+
+
+    </script>
+</body>
+
+</html>

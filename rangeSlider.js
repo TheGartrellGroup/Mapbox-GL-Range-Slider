@@ -315,12 +315,14 @@ RangeSlider.prototype.initialSliderValues = function() {
     var initialMin, initialMax;
 
     var specifiedInitialMinValue, specifiedInitialMaxValue;
-    if (this.options.propertyType === 'iso8601') {
-        specifiedInitialMinValue = iso8601StringToEpoch(this.options.filterMin);
-        specifiedInitialMaxValue = iso8601StringToEpoch(this.options.filterMax);
-    } else {
-        specifiedInitialMinValue = this.options.filterMin;
-        specifiedInitialMaxValue = this.options.filterMax;
+    if (this.options.filterMin && this.options.filterMax) {
+        if (this.options.propertyType === 'iso8601') {
+            specifiedInitialMinValue = iso8601StringToEpoch(this.options.filterMin);
+            specifiedInitialMaxValue = iso8601StringToEpoch(this.options.filterMax);
+        } else {
+            specifiedInitialMinValue = this.options.filterMin;
+            specifiedInitialMaxValue = this.options.filterMax;
+        }
     }
 
     if (specifiedInitialMinValue >= sliderMin && specifiedInitialMaxValue <= sliderMax) {
@@ -421,7 +423,8 @@ RangeSlider.prototype.updateRangeDisplay = function(vals) {
 RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
     var that = this,
         feats = that.fc.features,
-        rangeFilter;
+        rangeFilter,
+        f;
 
     that.currentMinMaxVals = vals;
 
@@ -448,7 +451,7 @@ RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
         }
 
     } else if (that.options.propertyType !== 'iso8601') {
-        var f = ['all',
+        f = ['all',
             ['>=', ['number', ['get', that.options.minProperty]], vals[0]],
             ['<=', ['number', ['get', that.options.maxProperty]], vals[1]],
         ];
@@ -457,12 +460,13 @@ RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
             rangeFilter = combineFilters(that.options.layer, f);
         } else {
             rangeFilter = f;
+
         }
 
         map.setFilter(that.options.layer, rangeFilter);
 
     } else if (that.hasCustomAttributes) {
-        var f = ['all',
+        f = ['all',
             ['>=', ['number', ['get', that.options.customMinProperty]], vals[0]],
             ['<=', ['number', ['get', that.options.customMaxProperty]], vals[1]],
         ];
@@ -490,6 +494,10 @@ RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
         if (that.preExistingFilter) {
             map.setFilter(that.options.layer, that.preExistingFilter);
         }
+    }
+
+    if (typeof f !== 'undefined' && Array.isArray(f)) {
+        that.secondaryFilter = f;
     }
 }
 
