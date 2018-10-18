@@ -19,7 +19,8 @@ function RangeSlider(options, position) {
         controlWidth: options.controlWidth ? options.controlWidth : '200px',
         input: options.input ? options.input : false,
         customMinProperty: options.customMinProperty ? options.customMinProperty : null, // a custom 'minimum value' property that will be added to each feature's attribute property
-        customMaxProperty: options.customMaxProperty ? options.customMaxProperty : null // a custom 'maximum value' property that will be added to each feature's attribute property
+        customMaxProperty: options.customMaxProperty ? options.customMaxProperty : null, // a custom 'maximum value' property that will be added to each feature's attribute property
+        dontFilterOnLoad: options.dontFilterOnLoad ? options.dontFilterOnLoad : false // allow ability to NOT filter features on load
     };
 
     this.position = position;
@@ -149,21 +150,20 @@ RangeSlider.prototype.setRanges = function() {
         }
     });
 
-    that.firstPass = true;
+    that.updateCount = 0
 
     mbSlider.noUiSlider.on('update', function(val, handle) {
         var options = that.options,
             vals;
 
-        vals = options.formatString !== 'float' ? [Math.round(val[0]), Math.round(val[1])] : [parseFloat(val[0]), parseFloat(val[1])];
+        if (!that.options.dontFilterOnLoad || that.updateCount !== 1) {
+            vals = options.formatString !== 'float' ? [Math.round(val[0]), Math.round(val[1])] : [parseFloat(val[0]), parseFloat(val[1])];
 
-        that.displayFilteredFeatures(map, vals);
-        that.updateRangeDisplay(vals);
-
-        if (that.firstPass) {
-          that.firstPass = false;
+            that.displayFilteredFeatures(map, vals);
+            that.updateRangeDisplay(vals);
         }
 
+        that.updateCount++
     })
 
     if (that.options.input) {
@@ -441,7 +441,7 @@ RangeSlider.prototype.displayFilteredFeatures = function(map, vals) {
         return filter;
     }
 
-    if (that.firstPass) {
+    if (that.updateCount === 0) {
         var filter = map.getFilter(that.options.layer);
         //do we have a pre-existing filter on load
         that.preExistingFilter = (filter !== undefined) ? filter : false;
